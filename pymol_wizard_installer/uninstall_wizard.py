@@ -7,7 +7,7 @@ import re
 import fileinput
 import yaml
 
-from .wizard_metadata import WizardMetadata
+from wizard_metadata import WizardMetadata
 
 
 def read_installation_data(installation_data):

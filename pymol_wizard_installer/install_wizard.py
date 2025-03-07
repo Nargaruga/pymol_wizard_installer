@@ -7,7 +7,7 @@ import re
 import stat
 import yaml
 
-from ext.wizard_installer.wizard_installer.wizard_metadata import WizardMetadata
+from wizard_metadata import WizardMetadata
 
 
 def parse_wizard_metadata(metadata_file):
