@@ -1,0 +1,10 @@
+name: my_wizard
+menu_entry: "my cool wiz"
+default_env: my_env
+root_dir: my_wizard_root
+use_vr: true
+
+python_version: 3.9
+pymol_version: 3.3.0
+openvr_version: 1.0.17
+
