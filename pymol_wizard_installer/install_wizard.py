@@ -136,11 +136,6 @@ def install_openvr(clone_dir, conda_base_path, env_name):
             check=True,
         )
 
-        # Copy the openvr.h header
-        shutil.copy(
-            os.path.join(clone_dir, "openvr", "headers", "openvr.h"),
-            os.path.join(env_dir, "include"),
-        )
 
         # Rename the .lib file
         shutil.move(
@@ -170,6 +165,12 @@ def install_openvr(clone_dir, conda_base_path, env_name):
                 "openvr_api64.dll",
             ),
         )
+
+    # Copy the openvr.h header
+    shutil.copy(
+        os.path.join(clone_dir, "openvr", "headers", "openvr.h"),
+        os.path.join(env_dir, "include"),
+    )
 
 
 def install_pymol(clone_dir, env_name):
