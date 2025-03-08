@@ -63,6 +63,10 @@ def install_openvr(clone_dir, conda_base_path, env_name):
     if os.name == "posix":
         subprocess.run(
             [
+                "conda",
+                "run",
+                "-n",
+                env_name,
                 "cmake",
                 "-S",
                 ".",
@@ -75,19 +79,33 @@ def install_openvr(clone_dir, conda_base_path, env_name):
         )
 
         subprocess.run(
-            ["cmake", "--build", "build", "--config", "Release"],
+            [
+                "conda",
+                "run",
+                "-n",
+                env_name,
+                "cmake",
+                "--build",
+                "build",
+                "--config",
+                "Release",
+            ],
             cwd=os.path.join(clone_dir, "openvr"),
             check=True,
         )
 
         subprocess.run(
-            ["sudo", "make", "install"],
+            ["conda", "run", "-n", env_name, "sudo", "make", "install"],
             cwd=os.path.join(clone_dir, "openvr", "build"),
             check=True,
         )
     elif os.name == "nt":
         subprocess.run(
             [
+                "conda",
+                "run",
+                "-n",
+                env_name,
                 "cmake",
                 "-S",
                 ".",
@@ -102,6 +120,10 @@ def install_openvr(clone_dir, conda_base_path, env_name):
 
         subprocess.run(
             [
+                "conda",
+                "run",
+                "-n",
+                env_name,
                 "cmake",
                 "--build",
                 "build",
