@@ -6,6 +6,7 @@ import shutil
 import re
 import stat
 import yaml
+import json
 
 from wizard_metadata import WizardMetadata
 
@@ -407,13 +408,11 @@ def main():
     print("Done!")
 
     # Record the environment used for the installation, needed for uninstalling
-    installation_data_file = os.path.join(wizard_root, "installation_data.yaml")
-    print(installation_data_file)
+    installation_data_file = os.path.join(wizard_root, "installation_data.json")
     os.makedirs(os.path.dirname(installation_data_file), exist_ok=True)
     with open(installation_data_file, "w") as f:
-        yaml.dump(
+        json.dump(
             {
-                "config": wizard_metadata,
                 "installed_wizard_dir": installed_wizard_dir,
                 "env_name": current_env,
             },
