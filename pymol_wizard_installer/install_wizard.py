@@ -25,6 +25,7 @@ def parse_wizard_metadata(metadata_file):
         raw_metadata["openvr_version"],
         raw_metadata["extra_dirs"],
         raw_metadata["pre_script"],
+        raw_metadata["post_script"],
     )
 
 
@@ -421,6 +422,18 @@ def main():
             },
             f,
         )
+
+    if wizard_metadata.post_script:
+        print("Running post-installation script...")
+        try:
+            subprocess.run(
+                f"conda run --no-capture-output -n {current_env} python3 {os.path.join(wizard_root, wizard_metadata.post_script)} {wizard_root} {current_env}",
+                shell=True,
+                check=True,
+            )
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to run post-installation script: {e}")
+            exit(1)
 
     def remove_readonly(func, path, _):
         """Clear the readonly bit and remove the file."""

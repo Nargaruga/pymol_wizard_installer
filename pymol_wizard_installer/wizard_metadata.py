@@ -8,6 +8,7 @@ class WizardMetadata:
     openvr_version: str
     extra_dirs: str
     pre_script: str
+    post_script: str
 
     def __init__(
         self,
@@ -20,6 +21,7 @@ class WizardMetadata:
         openvr_version,
         extra_dirs,
         pre_script,
+        post_script,
     ):
         self.name = name
         self.menu_entry = menu_entry
@@ -30,3 +32,4 @@ class WizardMetadata:
         self.openvr_version = openvr_version
         self.extra_dirs = extra_dirs
         self.pre_script = pre_script
+        self.post_script = post_script
