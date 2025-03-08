@@ -344,14 +344,17 @@ def main():
                 print(f"Failed to install PyMOL: {e}")
                 exit(1)
 
-    # Run the pre-installation script
     if wizard_metadata.pre_script:
         print("Running pre-installation script...")
-        subprocess.run(
-            f"conda run -n {current_env} ./{os.path.join(wizard_root, wizard_metadata.pre_script)}",
-            shell=True,
-            check=True,
-        )
+        try:
+            subprocess.run(
+                f"conda run -n {current_env} python3 {os.path.join(wizard_root, wizard_metadata.pre_script)} {wizard_root} {current_env}",
+                shell=True,
+                check=True,
+            )
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to run pre-installation script: {e}")
+            exit(1)
 
     print("Copying files...")
     installed_wizard_dir = os.path.join(pymol_dir, "wizard")
