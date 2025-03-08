@@ -198,7 +198,7 @@ def main():
         print("Please provide the path to the wizard's root directory.")
         exit(1)
 
-    wizard_root = args[0]
+    wizard_root = os.path.abspath(args[0])
     wizard_metadata = parse_wizard_metadata(os.path.join(wizard_root, "metadata.yaml"))
 
     current_env = os.environ.get("CONDA_DEFAULT_ENV")
