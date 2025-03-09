@@ -232,7 +232,7 @@ def main():
         exit(1)
 
     print(
-        f"You are currently about to install the plugin in the {current_env} environment. Do you wish to create a new conda environment instead? (Y/n)"
+        f"You are currently about to install the {wizard_metadata.name} wizard in the {current_env} environment. Do you wish to create a new conda environment instead? (Y/n)"
     )
     try:
         answer = input().strip().lower() or "y"
@@ -370,7 +370,7 @@ def main():
                 exit(1)
 
     if wizard_metadata.pre_script:
-        print("Running pre-installation script...")
+        print(f"Running pre-installation script for the {wizard_metadata.name} wizard...")
         try:
             subprocess.run(
                 f"conda run -n {current_env} python3 {os.path.join(wizard_root, wizard_metadata.pre_script)} {wizard_root} {current_env}",
@@ -433,7 +433,7 @@ def main():
         gui_file, external_entry, external_entry_pattern, external_target_pattern
     )
 
-    print("Done!")
+    print(f"The {wizard_metadata.name} wizard has been installed successfully.")
 
     # Record the environment used for the installation, needed for uninstalling
     installation_data_file = os.path.join(
@@ -450,7 +450,7 @@ def main():
         )
 
     if wizard_metadata.post_script:
-        print("Running post-installation script...")
+        print(f"Running post-installation script for the {wizard_metadata.name} wizard...")
         try:
             subprocess.run(
                 f"conda run --no-capture-output -n {current_env} python3 {os.path.join(wizard_root, wizard_metadata.post_script)} {wizard_root} {current_env}",
