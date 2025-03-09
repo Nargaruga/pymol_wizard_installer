@@ -136,7 +136,6 @@ def install_openvr(clone_dir, conda_base_path, env_name):
             check=True,
         )
 
-
         # Rename the .lib file
         shutil.move(
             os.path.join(
@@ -397,10 +396,10 @@ def main():
             )
 
         if wizard_metadata.extra_dirs:
-            for extra_dir in wizard_metadata.extra_dirs:
+            for (source, target) in wizard_metadata.extra_dirs:
                 shutil.copytree(
-                    os.path.join(wizard_root, extra_dir),
-                    os.path.join(installed_wizard_dir, extra_dir),
+                    os.path.join(wizard_root, source),
+                    os.path.join(installed_wizard_dir, target),
                     dirs_exist_ok=True,
                 )
     except shutil.Error as e:
@@ -437,7 +436,9 @@ def main():
     print("Done!")
 
     # Record the environment used for the installation, needed for uninstalling
-    installation_data_file = os.path.join(wizard_root, "installation_data.json")
+    installation_data_file = os.path.join(
+        wizard_root, "installation_data.json"
+    )
     os.makedirs(os.path.dirname(installation_data_file), exist_ok=True)
     with open(installation_data_file, "w") as f:
         json.dump(
