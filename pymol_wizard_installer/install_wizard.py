@@ -373,7 +373,7 @@ def main():
         print(f"Running pre-installation script for the {wizard_metadata.name} wizard...")
         try:
             subprocess.run(
-                f"conda run -n {current_env} python3 {os.path.join(wizard_root, wizard_metadata.pre_script)} {wizard_root} {current_env}",
+                f"conda run -n {current_env} python {os.path.join(wizard_root, wizard_metadata.pre_script)} {wizard_root} {current_env}",
                 shell=True,
                 check=True,
             )
@@ -453,7 +453,7 @@ def main():
         print(f"Running post-installation script for the {wizard_metadata.name} wizard...")
         try:
             subprocess.run(
-                f"conda run --no-capture-output -n {current_env} python3 {os.path.join(wizard_root, wizard_metadata.post_script)} {wizard_root} {current_env}",
+                f"conda run --no-capture-output -n {current_env} python {os.path.join(wizard_root, wizard_metadata.post_script)} {wizard_root} {current_env}",
                 shell=True,
                 check=True,
             )
