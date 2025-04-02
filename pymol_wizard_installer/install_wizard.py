@@ -310,6 +310,15 @@ def main():
                     #     check=True,
                     #     shell=True,
                     # )
+                    subprocess.run(
+                        [
+                            "conda",
+                            "install",
+                            "--yes",
+                            "--file",
+                            os.path.join(wizard_root, "requirements.txt"),
+                        ]
+                    )
                 elif answer == "a":
                     print("Aborted by user.")
                     exit(0)
@@ -370,7 +379,9 @@ def main():
                 exit(1)
 
     if wizard_metadata.pre_script:
-        print(f"Running pre-installation script for the {wizard_metadata.name} wizard...")
+        print(
+            f"Running pre-installation script for the {wizard_metadata.name} wizard..."
+        )
         try:
             subprocess.run(
                 f"conda run -n {current_env} python {os.path.join(wizard_root, wizard_metadata.pre_script)} {wizard_root} {current_env}",
@@ -396,7 +407,7 @@ def main():
             )
 
         if wizard_metadata.extra_dirs:
-            for (source, target) in wizard_metadata.extra_dirs:
+            for source, target in wizard_metadata.extra_dirs:
                 shutil.copytree(
                     os.path.join(wizard_root, source),
                     os.path.join(installed_wizard_dir, target),
@@ -436,9 +447,7 @@ def main():
     print(f"The {wizard_metadata.name} wizard has been installed successfully.")
 
     # Record the environment used for the installation, needed for uninstalling
-    installation_data_file = os.path.join(
-        wizard_root, "installation_data.json"
-    )
+    installation_data_file = os.path.join(wizard_root, "installation_data.json")
     os.makedirs(os.path.dirname(installation_data_file), exist_ok=True)
     with open(installation_data_file, "w") as f:
         json.dump(
@@ -450,7 +459,9 @@ def main():
         )
 
     if wizard_metadata.post_script:
-        print(f"Running post-installation script for the {wizard_metadata.name} wizard...")
+        print(
+            f"Running post-installation script for the {wizard_metadata.name} wizard..."
+        )
         try:
             subprocess.run(
                 f"conda run --no-capture-output -n {current_env} python {os.path.join(wizard_root, wizard_metadata.post_script)} {wizard_root} {current_env}",
