@@ -307,19 +307,10 @@ def main():
                         exit(1)
                 elif answer == "u":
                     print(f"Using existing environment {new_env}.")
-                    # subprocess.run(
-                    #     f"conda env update -n {new_env} -f {get_env_file(wizard_root)}",
-                    #     check=True,
-                    #     shell=True,
-                    # )
                     subprocess.run(
-                        [
-                            "conda",
-                            "install",
-                            "--yes",
-                            "--file",
-                            os.path.join(wizard_root, "requirements.txt"),
-                        ]
+                        f"conda env update -n {new_env} -f {get_env_file(wizard_root)}",
+                        check=True,
+                        shell=True,
                     )
                 elif answer == "a":
                     print("Aborted by user.")
