@@ -352,24 +352,15 @@ def main():
         )
 
     if not os.path.exists(pymol_dir):
-        print(
-            f"PyMOL is not installed in the {current_env} environment. Do you wish to install it? (Y/n)"
-        )
+        clone_dir_path = os.path.join(".", "tmp")
+        Path(clone_dir_path).mkdir(parents=True, exist_ok=True)
         try:
-            answer = input().strip().lower() or "y"
-        except KeyboardInterrupt:
-            print("Aborted by user.")
-            exit(0)
-        if answer == "y":
-            clone_dir_path = os.path.join(".", "tmp")
-            Path(clone_dir_path).mkdir(parents=True, exist_ok=True)
-            try:
-                if wizard_metadata.use_vr:
-                    install_openvr(clone_dir_path, conda_base_path, current_env)
-                install_pymol(clone_dir_path, current_env)
-            except subprocess.CalledProcessError as e:
-                print(f"Failed to install PyMOL: {e}")
-                exit(1)
+            if wizard_metadata.use_vr:
+                install_openvr(clone_dir_path, conda_base_path, current_env)
+            install_pymol(clone_dir_path, current_env)
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to install PyMOL: {e}")
+            exit(1)
 
     if wizard_metadata.pre_script:
         print(
