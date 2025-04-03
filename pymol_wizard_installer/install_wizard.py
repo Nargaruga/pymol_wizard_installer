@@ -31,13 +31,15 @@ def parse_wizard_metadata(metadata_file):
 
 def get_env_file(wizard_root):
     envs_dir = os.path.join(wizard_root, "envs")
-    # return (
-    #     os.path.join(envs_dir, "windows_env.yaml")
-    #     if os.name == "nt"
-    #     else os.path.join(envs_dir, "linux_env.yaml")
-    # )
 
-    return os.path.join(envs_dir, "environment.yaml")
+    linux_env = os.path.join(envs_dir, "linux_environment.yaml")
+    windows_env = os.path.join(envs_dir, "windows_environment.yaml")
+    default_env = os.path.join(envs_dir, "environment.yaml")
+
+    if os.path.isfile(default_env):
+        return default_env
+
+    return linux_env if os.name == "posix" else windows_env
 
 
 def install_openvr(clone_dir, conda_base_path, env_name):
