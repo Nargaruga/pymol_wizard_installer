@@ -219,6 +219,87 @@ def add_line_after(file, to_insert, pattern_to_insert, target_pattern):
         f.write(contents)
 
 
+def env_exists(env_name):
+    """Check if a conda environment exists."""
+    try:
+        subprocess.run(
+            f"conda list --name {env_name}",
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.STDOUT,
+            shell=True,
+        ).check_returncode()
+    except subprocess.CalledProcessError:
+        return False
+    return True
+
+
+def overwrite_env(env_name, wizard_root, current_env):
+    print(f"Overwriting existing environment {env_name}.")
+    if env_name == current_env:
+        print(
+            "Cannot overwrite an active environment. Please deactivate it before retrying."
+        )
+        exit(1)
+    try:
+        subprocess.run(
+            f"conda env remove -n {env_name} -y",
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.STDOUT,
+            shell=True,
+        )
+        subprocess.run(
+            f"conda env create -n {env_name} -f {get_env_file(wizard_root)}",
+            check=True,
+            shell=True,
+        )
+    except subprocess.CalledProcessError as e:
+        print(f"Something went wrong while overwriting the environment: {e}")
+        exit(1)
+
+
+def reuse_env(env_name, wizard_root):
+    print(f"Using existing environment {env_name}.")
+    subprocess.run(
+        f"conda env update -n {env_name} -f {get_env_file(wizard_root)}",
+        check=True,
+        shell=True,
+    )
+
+
+def create_env(env_name, wizard_root, current_env, answer=""):
+    """Create a conda environment."""
+
+    if env_exists(env_name):
+        while answer not in ["o", "u", "a"]:
+            try:
+                print(
+                    f"Environment {env_name} already exists. Do you wish to overwrite it, use it or abort? (o/u/A)"
+                )
+                answer = input().strip().lower() or "a"
+            except KeyboardInterrupt:
+                print("Aborted by user.")
+                exit(0)
+
+            if answer == "o":
+                overwrite_env(env_name, wizard_root, current_env)
+            elif answer == "u":
+                reuse_env(env_name, wizard_root)
+            elif answer == "a":
+                print("Aborted by user.")
+                exit(0)
+            else:
+                print(
+                    "Invalid input. Please enter 'o' (overwrite), 'u' (use) or 'a' (abort)."
+                )
+    else:
+        print(f"Creating new environment {env_name}.")
+        subprocess.run(
+            f"conda env create -n {env_name} -f {get_env_file(wizard_root)}",
+            check=True,
+            shell=True,
+        )
+
+
 def main():
     args = sys.argv[1:]
     if len(args) < 1:
@@ -233,94 +314,38 @@ def main():
         print("Could not detect conda environment. Is conda installed?")
         exit(1)
 
-    print(
-        f"You are currently about to install the {wizard_metadata.name} wizard in the {current_env} environment. Do you wish to create a new conda environment instead? (Y/n)"
-    )
-    try:
-        answer = input().strip().lower() or "y"
-    except KeyboardInterrupt:
-        print("Aborted by user.")
-        exit(0)
-
-    if answer == "y":
+    if len(args) > 1:
+        print(f"Using provided environment name: {args[1]}.")
+        new_env = args[1]
+        create_env(new_env, wizard_root, current_env, "u")
+        current_env = new_env
+    else:
         print(
-            f'Please enter the name of the new environment (leave empty for default, "{wizard_metadata.default_env}"):'
+            f"You are currently about to install the {wizard_metadata.name} wizard in the {current_env} environment. Do you wish to create a new conda environment instead? (Y/n)"
         )
         try:
-            new_env = input().strip() or wizard_metadata.default_env
+            answer = input().strip().lower() or "y"
         except KeyboardInterrupt:
             print("Aborted by user.")
             exit(0)
 
-        if new_env == "":
-            new_env = wizard_metadata.default_env
-
-        try:
-            subprocess.run(
-                f"conda list --name {new_env}",
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.STDOUT,
-                shell=True,
-            ).check_returncode()
-        except subprocess.CalledProcessError:
-            print(f"Creating new environment {new_env}.")
-            subprocess.run(
-                f"conda env create -n {new_env} -f {get_env_file(wizard_root)}",
-                check=True,
-                shell=True,
-            )
-        else:
+        if answer == "y":
             print(
-                f"Environment {new_env} already exists. Do you wish to overwrite it, use it or abort? (o/u/A)"
+                f'Please enter the name of the new environment (leave empty for default, "{wizard_metadata.default_env}"):'
             )
-            answer = ""
-            while answer not in ["o", "u", "a"]:
-                try:
-                    answer = input().strip().lower() or "a"
-                except KeyboardInterrupt:
-                    print("Aborted by user.")
-                    exit(0)
+            try:
+                new_env = input().strip() or wizard_metadata.default_env
+            except KeyboardInterrupt:
+                print("Aborted by user.")
+                exit(0)
 
-                if answer == "o":
-                    print(f"Overwriting existing environment {new_env}.")
-                    if new_env == current_env:
-                        print(
-                            "Cannot overwrite an active environment. Please deactivate it before retrying."
-                        )
-                        exit(1)
-                    try:
-                        subprocess.run(
-                            f"conda env remove -n {new_env} -y",
-                            stdout=subprocess.DEVNULL,
-                            stderr=subprocess.STDOUT,
-                            shell=True,
-                        )
-                        subprocess.run(
-                            f"conda env create -n {new_env} -f {get_env_file(wizard_root)}",
-                            check=True,
-                            shell=True,
-                        )
-                    except subprocess.CalledProcessError as e:
-                        print(
-                            f"Something went wrong while overwriting the environment: {e}"
-                        )
-                        exit(1)
-                elif answer == "u":
-                    print(f"Using existing environment {new_env}.")
-                    subprocess.run(
-                        f"conda env update -n {new_env} -f {get_env_file(wizard_root)}",
-                        check=True,
-                        shell=True,
-                    )
-                elif answer == "a":
-                    print("Aborted by user.")
-                    exit(0)
-                else:
-                    print(
-                        "Invalid input. Please enter 'o' (overwrite), 'u' (use) or 'a' (abort)."
-                    )
+            if new_env == "":
+                new_env = wizard_metadata.default_env
 
-        current_env = new_env
+            create_env(new_env, wizard_root, current_env)
+            current_env = new_env
+        else:
+            print(f"Using existing environment {current_env}.")
 
     try:
         conda_base_path = str(
