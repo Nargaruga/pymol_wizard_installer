@@ -7,9 +7,7 @@ import re
 import stat
 import yaml
 import json
-import json
 
-from wizard_metadata import WizardMetadata
 from wizard_metadata import WizardMetadata
 
 
@@ -187,13 +185,6 @@ def install_openvr(clone_dir, conda_base_path, env_name):
     )
 
 
-    # Copy the openvr.h header
-    shutil.copy(
-        os.path.join(clone_dir, "openvr", "headers", "openvr.h"),
-        os.path.join(env_dir, "include"),
-    )
-
-
 def install_pymol(clone_dir, env_name):
     if not os.path.exists(os.path.join(clone_dir, "pymol-open-source")):
         print("Installing PyMOL...")
@@ -327,7 +318,6 @@ def main():
         exit(1)
 
     wizard_root = os.path.abspath(args[0])
-    wizard_root = os.path.abspath(args[0])
     wizard_metadata = parse_wizard_metadata(os.path.join(wizard_root, "metadata.yaml"))
 
     current_env = os.environ.get("CONDA_DEFAULT_ENV")
@@ -444,20 +434,6 @@ def main():
             os.path.join(wizard_root, f"{wizard_metadata.name}.py"),
             os.path.join(installed_wizard_dir, f"{wizard_metadata.name}.py"),
         )
-        if os.path.exists(os.path.join(wizard_root, "config")):
-            shutil.copytree(
-                os.path.join(wizard_root, "config"),
-                os.path.join(installed_wizard_dir, "config"),
-                dirs_exist_ok=True,
-            )
-
-        if wizard_metadata.extra_dirs:
-            for extra_dir in wizard_metadata.extra_dirs:
-                shutil.copytree(
-                    os.path.join(wizard_root, extra_dir),
-                    os.path.join(installed_wizard_dir, extra_dir),
-                    dirs_exist_ok=True,
-                )
     except shutil.Error as e:
         print(f"Failed to copy files: {e}")
         exit(1)

@@ -6,7 +6,6 @@ class WizardMetadata:
     python_version: str
     pymol_version: str
     openvr_version: str
-    extra_dirs: str
     pre_script: str
     post_script: str
 
