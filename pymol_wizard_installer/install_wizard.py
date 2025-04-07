@@ -7,7 +7,9 @@ import re
 import stat
 import yaml
 import json
+import json
 
+from wizard_metadata import WizardMetadata
 from wizard_metadata import WizardMetadata
 
 
@@ -23,7 +25,6 @@ def parse_wizard_metadata(metadata_file):
         raw_metadata["python_version"],
         raw_metadata["pymol_version"],
         raw_metadata["openvr_version"],
-        raw_metadata["extra_dirs"],
         raw_metadata["pre_script"],
         raw_metadata["post_script"],
     )
@@ -69,6 +70,10 @@ def install_openvr(clone_dir, conda_base_path, env_name):
                 "run",
                 "-n",
                 env_name,
+                "conda",
+                "run",
+                "-n",
+                env_name,
                 "cmake",
                 "-S",
                 ".",
@@ -108,6 +113,10 @@ def install_openvr(clone_dir, conda_base_path, env_name):
                 "run",
                 "-n",
                 env_name,
+                "conda",
+                "run",
+                "-n",
+                env_name,
                 "cmake",
                 "-S",
                 ".",
@@ -122,6 +131,10 @@ def install_openvr(clone_dir, conda_base_path, env_name):
 
         subprocess.run(
             [
+                "conda",
+                "run",
+                "-n",
+                env_name,
                 "conda",
                 "run",
                 "-n",
@@ -166,6 +179,13 @@ def install_openvr(clone_dir, conda_base_path, env_name):
                 "openvr_api64.dll",
             ),
         )
+
+    # Copy the openvr.h header
+    shutil.copy(
+        os.path.join(clone_dir, "openvr", "headers", "openvr.h"),
+        os.path.join(env_dir, "include"),
+    )
+
 
     # Copy the openvr.h header
     shutil.copy(
@@ -307,6 +327,7 @@ def main():
         exit(1)
 
     wizard_root = os.path.abspath(args[0])
+    wizard_root = os.path.abspath(args[0])
     wizard_metadata = parse_wizard_metadata(os.path.join(wizard_root, "metadata.yaml"))
 
     current_env = os.environ.get("CONDA_DEFAULT_ENV")
@@ -376,16 +397,31 @@ def main():
             "pymol",
         )
 
-    if not os.path.exists(pymol_dir):
-        clone_dir_path = os.path.join(".", "tmp")
-        Path(clone_dir_path).mkdir(parents=True, exist_ok=True)
+    try:
+        subprocess.run(
+            f"conda run -n {current_env} python -c 'import pymol'",
+            shell=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError:
+        print(
+            f"PyMOL is not installed in the {current_env} environment. Do you wish to install it? (Y/n)"
+        )
         try:
-            if wizard_metadata.use_vr:
-                install_openvr(clone_dir_path, conda_base_path, current_env)
-            install_pymol(clone_dir_path, current_env)
-        except subprocess.CalledProcessError as e:
-            print(f"Failed to install PyMOL: {e}")
-            exit(1)
+            answer = input().strip().lower() or "y"
+        except KeyboardInterrupt:
+            print("Aborted by user.")
+            exit(0)
+        if answer == "y":
+            clone_dir_path = os.path.join(".", "tmp")
+            Path(clone_dir_path).mkdir(parents=True, exist_ok=True)
+            try:
+                if wizard_metadata.use_vr:
+                    install_openvr(clone_dir_path, conda_base_path, current_env)
+                install_pymol(clone_dir_path, current_env)
+            except subprocess.CalledProcessError as e:
+                print(f"Failed to install PyMOL: {e}")
+                exit(1)
 
     if wizard_metadata.pre_script:
         print(
@@ -416,10 +452,10 @@ def main():
             )
 
         if wizard_metadata.extra_dirs:
-            for source, target in wizard_metadata.extra_dirs:
+            for extra_dir in wizard_metadata.extra_dirs:
                 shutil.copytree(
-                    os.path.join(wizard_root, source),
-                    os.path.join(installed_wizard_dir, target),
+                    os.path.join(wizard_root, extra_dir),
+                    os.path.join(installed_wizard_dir, extra_dir),
                     dirs_exist_ok=True,
                 )
     except shutil.Error as e:

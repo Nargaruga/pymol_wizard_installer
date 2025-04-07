@@ -19,7 +19,6 @@ class WizardMetadata:
         python_version,
         pymol_version,
         openvr_version,
-        extra_dirs,
         pre_script,
         post_script,
     ):
@@ -30,6 +29,5 @@ class WizardMetadata:
         self.python_version = python_version
         self.pymol_version = pymol_version
         self.openvr_version = openvr_version
-        self.extra_dirs = extra_dirs
         self.pre_script = pre_script
         self.post_script = post_script
