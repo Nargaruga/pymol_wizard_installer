@@ -5,6 +5,7 @@ import subprocess
 import re
 import fileinput
 import yaml
+import toml
 
 from pymol_wizard_installer.wizard_metadata import WizardMetadata
 
@@ -22,6 +23,38 @@ def remove_line(file, pattern_to_remove):
             if not pattern_to_remove.search(line):
                 print(line, end="")
 
+
+def get_package_name_from_toml(package_root):
+    """Reads the package name from pyproject.toml."""
+
+    toml_path = os.path.join(package_root, "pyproject.toml")
+    if not os.path.exists(toml_path):
+        print(f"Error: pyproject.toml not found in {package_root}")
+        return None
+
+    try:
+        with open(toml_path, "r") as f:
+            data = toml.load(f)
+            if "project" in data and "name" in data["project"]:
+                return data["project"]["name"]
+            else:
+                print("Error: 'project.name' not found in pyproject.toml")
+                return None
+    except toml.TomlDecodeError as e:
+        print(f"Error decoding pyproject.toml: {e}")
+        return None
+    except FileNotFoundError:
+        print(f"Error: pyproject.toml not found at {toml_path}")
+        return None
+
+def uninstall_package(package_name):
+    """Uninstalls a Python package using pip."""
+
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "uninstall", "-y", package_name])
+        print(f"Successfully uninstalled {package_name}")
+    except subprocess.CalledProcessError as e:
+        print(f"Error uninstalling {package_name}: {e}")
 
 def main():
     if len(sys.argv) < 2:
@@ -74,23 +107,7 @@ def main():
         exit(1)
 
     print("Uninstalling package...")
-    try:
-        subprocess.run(
-            [
-                "conda",
-                "run",
-                "-n",
-                env_name,
-                "pip",
-                "uninstall",
-                "-y",
-                f"{wizard_config.name}",
-            ],
-            check=True,
-        )
-    except subprocess.CalledProcessError:
-        print("Failed to uninstall package.")
-        exit(1)
+    uninstall_package(get_package_name_from_toml(sys.argv[1]))
 
     print("Removing files...")
     if os.name == "nt":
