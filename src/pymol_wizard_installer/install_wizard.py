@@ -189,7 +189,7 @@ def install_openvr(clone_dir, conda_base_path, env_name):
     )
 
 
-def install_pymol(clone_dir, env_name):
+def install_pymol(clone_dir, version, env_name):
     """Clone, build and install PyMOL."""
 
     if not os.path.exists(os.path.join(clone_dir, "pymol-open-source")):
@@ -199,8 +199,8 @@ def install_pymol(clone_dir, env_name):
                 "git",
                 "clone",
                 "-b",
-                "vr_atom_selection",
-                "git@github.com:Nargaruga/pymol-open-source.git",
+                version,
+                "git@github.com:schrodinger/pymol-open-source.git",
                 os.path.join(clone_dir, "pymol-open-source"),
             ],
             check=True,
@@ -420,7 +420,9 @@ def main():
             try:
                 if wizard_metadata.use_vr:
                     install_openvr(clone_dir_path, conda_base_path, current_env)
-                install_pymol(clone_dir_path, current_env)
+                install_pymol(
+                    clone_dir_path, wizard_metadata.pymol_version, current_env
+                )
             except subprocess.CalledProcessError as e:
                 print(f"Failed to install PyMOL: {e}")
                 exit(1)
