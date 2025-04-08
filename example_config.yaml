@@ -1,10 +1,11 @@
-name: my_wizard
-menu_entry: "my cool wiz"
-default_env: my_env
-root_dir: my_wizard_root
+name: my_wizard_name
+menu_entry: "My wizard menu entry"
+default_env: my_conda_env_name
 use_vr: true
 
 python_version: 3.9
 pymol_version: 3.3.0
 openvr_version: 1.0.17
 
+pre_script: "my_pre_installation_script.py"
+post_script: "my_post_installation_script.py"
