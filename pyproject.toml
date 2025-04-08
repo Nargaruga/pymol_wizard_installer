@@ -1,5 +1,14 @@
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
 [project]
 dependencies = [
   "pyyaml >= 6.0.1",
-  "conda >= 24.7.1",
 ]
+name = "pymol_wizard_installer"
+version = "0.1.0"
+
+[project.scripts]
+install_wizard = "pymol_wizard_installer.install_wizard:main"
+uninstall_wizard = "pymol_wizard_installer.uninstall_wizard:main"

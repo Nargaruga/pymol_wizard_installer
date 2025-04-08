@@ -8,10 +8,12 @@ import stat
 import yaml
 import json
 
-from wizard_metadata import WizardMetadata
+from pymol_wizard_installer.wizard_metadata import WizardMetadata
 
 
 def parse_wizard_metadata(metadata_file):
+    """Parse the wizard metadata file."""
+
     stream = open(Path(metadata_file), "r")
     raw_metadata = yaml.safe_load(stream)
 
@@ -29,6 +31,8 @@ def parse_wizard_metadata(metadata_file):
 
 
 def get_env_file(wizard_root):
+    """Get the environment file for the current platform."""
+
     envs_dir = os.path.join(wizard_root, "envs")
 
     linux_env = os.path.join(envs_dir, "linux_environment.yaml")
@@ -186,6 +190,8 @@ def install_openvr(clone_dir, conda_base_path, env_name):
 
 
 def install_pymol(clone_dir, env_name):
+    """Clone, build and install PyMOL."""
+
     if not os.path.exists(os.path.join(clone_dir, "pymol-open-source")):
         print("Installing PyMOL...")
         subprocess.run(
@@ -245,6 +251,8 @@ def env_exists(env_name):
 
 
 def overwrite_env(env_name, wizard_root, current_env):
+    """Overwrite an existing conda environment."""
+
     print(f"Overwriting existing environment {env_name}.")
     if env_name == current_env:
         print(
@@ -269,6 +277,8 @@ def overwrite_env(env_name, wizard_root, current_env):
 
 
 def reuse_env(env_name, wizard_root):
+    """Reuse existing conda environment."""
+
     print(f"Using existing environment {env_name}.")
     subprocess.run(
         f"conda env update -n {env_name} -f {get_env_file(wizard_root)}",
@@ -392,6 +402,8 @@ def main():
             f"conda run -n {current_env} python -c 'import pymol'",
             shell=True,
             check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
     except subprocess.CalledProcessError:
         print(
@@ -426,6 +438,23 @@ def main():
         except subprocess.CalledProcessError as e:
             print(f"Failed to run pre-installation script: {e}")
             exit(1)
+
+    print("Installing package...")
+    try:
+        subprocess.run(
+            [
+                "conda",
+                "run",
+                "--name",
+                current_env,
+                "pip",
+                "install",
+                wizard_root,
+            ]
+        )
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to install package: {e}")
+        exit(1)
 
     print("Copying files...")
     installed_wizard_dir = os.path.join(pymol_dir, "wizard")
@@ -466,18 +495,6 @@ def main():
     )
 
     print(f"The {wizard_metadata.name} wizard has been installed successfully.")
-
-    # Record the environment used for the installation, needed for uninstalling
-    installation_data_file = os.path.join(wizard_root, "installation_data.json")
-    os.makedirs(os.path.dirname(installation_data_file), exist_ok=True)
-    with open(installation_data_file, "w") as f:
-        json.dump(
-            {
-                "installed_wizard_dir": installed_wizard_dir,
-                "env_name": current_env,
-            },
-            f,
-        )
 
     if wizard_metadata.post_script:
         print(

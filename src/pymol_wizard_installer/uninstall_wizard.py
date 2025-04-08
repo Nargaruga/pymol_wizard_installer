@@ -2,15 +2,14 @@ import os
 import sys
 from pathlib import Path
 import subprocess
-import shutil
 import re
 import fileinput
 import yaml
 
-from wizard_metadata import WizardMetadata
+from pymol_wizard_installer.wizard_metadata import WizardMetadata
 
 
-def read_installation_data(installation_data):
+def read_wizard_metadata(installation_data):
     stream = open(Path(installation_data), "r")
     raw_data = yaml.safe_load(stream)
 
@@ -25,24 +24,29 @@ def remove_line(file, pattern_to_remove):
 
 
 def main():
-    args = sys.argv[1:]
-    if len(args) < 1:
-        print("Missing mandatory argument: wizard installation data file.")
+    if len(sys.argv) < 2:
+        print("Please provide the path to the wizard's root directory.")
         exit(1)
 
-    raw_installation_data = read_installation_data(args[0])
-    wizard_config_raw = raw_installation_data["config"]
-    wizard_config = WizardMetadata(
-        wizard_config_raw["name"],
-        wizard_config_raw["menu_entry"],
-        wizard_config_raw["default_env"],
-        wizard_config_raw["root_dir"],
-        wizard_config_raw["use_vr"],
-        wizard_config_raw["python_version"],
-        wizard_config_raw["pymol_version"],
-        wizard_config_raw["openvr_version"],
+    raw_wizard_metadata = read_wizard_metadata(
+        os.path.join(sys.argv[1], "metadata.yaml")
     )
-    env_name = raw_installation_data["env_name"]
+    wizard_config = WizardMetadata(
+        raw_wizard_metadata["name"],
+        raw_wizard_metadata["menu_entry"],
+        raw_wizard_metadata["default_env"],
+        raw_wizard_metadata["use_vr"],
+        raw_wizard_metadata["python_version"],
+        raw_wizard_metadata["pymol_version"],
+        raw_wizard_metadata["openvr_version"],
+        raw_wizard_metadata["pre_script"],
+        raw_wizard_metadata["post_script"],
+    )
+
+    if len(sys.argv) > 2:
+        env_name = sys.argv[2]
+    else:
+        env_name = None
 
     if env_name is None:
         print(
@@ -67,6 +71,25 @@ def main():
     prefix = os.path.join(conda_base_path, "envs", env_name)
     if prefix is None:
         print("Something went wrong. Please check the conda environment name.")
+        exit(1)
+
+    print("Uninstalling package...")
+    try:
+        subprocess.run(
+            [
+                "conda",
+                "run",
+                "-n",
+                env_name,
+                "pip",
+                "uninstall",
+                "-y",
+                f"{wizard_config.name}",
+            ],
+            check=True,
+        )
+    except subprocess.CalledProcessError:
+        print("Failed to uninstall package.")
         exit(1)
 
     print("Removing files...")
@@ -113,7 +136,10 @@ def main():
     )
     remove_line(gui_file, external_entry_pattern)
 
-    print("Done! Note that the conda environment was not removed.")
+    print(
+        f"Successfully uninstalled wizard {wizard_config.name} from environment {env_name}."
+    )
 
-    if __name__ == "__main__":
-        main()
+
+if __name__ == "__main__":
+    main()
