@@ -111,6 +111,7 @@ def install_openvr(clone_dir, conda_base_path, env_name):
     elif os.name == "nt":
         subprocess.run(
             [
+                "powershell.exe",
                 "conda",
                 "run",
                 "-n",
@@ -133,6 +134,7 @@ def install_openvr(clone_dir, conda_base_path, env_name):
 
         subprocess.run(
             [
+                "powershell.exe",
                 "conda",
                 "run",
                 "-n",
@@ -207,8 +209,18 @@ def install_pymol(clone_dir, version, env_name):
         )
 
     subprocess.run(
-        f"conda run -n {env_name} pip install --config-settings openvr=True {os.path.join(clone_dir, 'pymol-open-source')}",
-        shell=True,
+        ([] if os.name == "posix" else ["powershell.exe"])
+        + [
+            "conda",
+            "run",
+            "-n",
+            env_name,
+            "pip",
+            "install",
+            "--config-settings",
+            f"openvr={use_vr}",
+            os.path.join(clone_dir, "pymol-open-source"),
+        ],
         check=True,
     )
 
@@ -399,8 +411,8 @@ def main():
 
     try:
         subprocess.run(
-            f"conda run -n {current_env} python -c 'import pymol'",
-            shell=True,
+            ([] if os.name == "posix" else ["powershell.exe"])
+            + ["conda", "run", "-n", current_env, "python", "-c", "import pymol"],
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -433,8 +445,18 @@ def main():
         )
         try:
             subprocess.run(
-                f"conda run -n {current_env} python {os.path.join(wizard_root, wizard_metadata.pre_script)} {wizard_root} {current_env}",
-                shell=True,
+                ([] if os.name == "posix" else ["powershell.exe"])
+                + [
+                    "conda",
+                    "run",
+                    "--no-capture-output",
+                    "-n",
+                    current_env,
+                    "python",
+                    os.path.join(wizard_root, wizard_metadata.pre_script),
+                    wizard_root,
+                    current_env,
+                ],
                 check=True,
             )
         except subprocess.CalledProcessError as e:
@@ -444,7 +466,8 @@ def main():
     print("Installing package...")
     try:
         subprocess.run(
-            [
+            ([] if os.name == "posix" else ["powershell.exe"])
+            + [
                 "conda",
                 "run",
                 "--name",
@@ -460,6 +483,7 @@ def main():
 
     print("Copying files...")
     installed_wizard_dir = os.path.join(pymol_dir, "wizard")
+    print(f"Copying {wizard_metadata.name} wizard to {installed_wizard_dir}...")
     try:
         shutil.copy(
             os.path.join(wizard_root, f"{wizard_metadata.name}.py"),
@@ -504,8 +528,18 @@ def main():
         )
         try:
             subprocess.run(
-                f"conda run --no-capture-output -n {current_env} python {os.path.join(wizard_root, wizard_metadata.post_script)} {wizard_root} {current_env}",
-                shell=True,
+                ([] if os.name == "posix" else ["powershell.exe"])
+                + [
+                    "conda",
+                    "run",
+                    "--no-capture-output",
+                    "-n",
+                    current_env,
+                    "python",
+                    os.path.join(wizard_root, wizard_metadata.post_script),
+                    wizard_root,
+                    current_env,
+                ],
                 check=True,
             )
         except subprocess.CalledProcessError as e:
