@@ -21,7 +21,6 @@ def parse_wizard_metadata(metadata_file):
         raw_metadata["name"],
         raw_metadata["menu_entry"],
         raw_metadata["default_env"],
-        raw_metadata["use_vr"],
         raw_metadata["python_version"],
         raw_metadata["pymol_version"],
         raw_metadata["openvr_version"],
@@ -191,7 +190,7 @@ def install_openvr(clone_dir, conda_base_path, env_name):
     )
 
 
-def install_pymol(clone_dir, version, env_name):
+def install_pymol(clone_dir, version, env_name, use_openvr):
     """Clone, build and install PyMOL."""
 
     if not os.path.exists(os.path.join(clone_dir, "pymol-open-source")):
@@ -218,7 +217,7 @@ def install_pymol(clone_dir, version, env_name):
             "pip",
             "install",
             "--config-settings",
-            f"openvr={use_vr}",
+            f"openvr={use_openvr}",
             os.path.join(clone_dir, "pymol-open-source"),
         ],
         check=True,
@@ -412,7 +411,7 @@ def main():
     try:
         subprocess.run(
             ([] if os.name == "posix" else ["powershell.exe"])
-            + ["conda", "run", "-n", current_env, "python", "-c", "import pymol"],
+            + ["conda", "run", "-n", "prova", "python", "-c", '"import pymol"'],
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -429,11 +428,23 @@ def main():
         if answer == "y":
             clone_dir_path = os.path.join(".", "tmp")
             Path(clone_dir_path).mkdir(parents=True, exist_ok=True)
+            print("Do you wish to include VR support? (Y/n)")
             try:
-                if wizard_metadata.use_vr:
+                answer = input().strip().lower() or "y"
+            except KeyboardInterrupt:
+                print("Aborted by user.")
+                exit(0)
+            try:
+                if answer == "y":
                     install_openvr(clone_dir_path, conda_base_path, current_env)
+                    use_openvr = True
+                else:
+                    use_openvr = False
                 install_pymol(
-                    clone_dir_path, wizard_metadata.pymol_version, current_env
+                    clone_dir_path,
+                    wizard_metadata.pymol_version,
+                    current_env,
+                    use_openvr,
                 )
             except subprocess.CalledProcessError as e:
                 print(f"Failed to install PyMOL: {e}")

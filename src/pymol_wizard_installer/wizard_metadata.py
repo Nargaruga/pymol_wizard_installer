@@ -2,7 +2,6 @@ class WizardMetadata:
     name: str
     menu_entry: str
     default_env: str
-    use_vr: bool
     python_version: str
     pymol_version: str
     openvr_version: str
@@ -14,7 +13,6 @@ class WizardMetadata:
         name,
         menu_entry,
         default_env,
-        use_vr,
         python_version,
         pymol_version,
         openvr_version,
@@ -24,7 +22,6 @@ class WizardMetadata:
         self.name = name
         self.menu_entry = menu_entry
         self.default_env = default_env
-        self.use_vr = use_vr
         self.python_version = python_version
         self.pymol_version = pymol_version
         self.openvr_version = openvr_version
