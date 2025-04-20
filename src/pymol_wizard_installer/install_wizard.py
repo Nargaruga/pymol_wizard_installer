@@ -505,7 +505,7 @@ def main():
         exit(1)
 
     print("Adding menu entries...")
-    # Edit the openvr wizard to add a menu item in the internal menu
+    # Add a menu entry in the internal GUI
     openvr_wizard = os.path.join(installed_wizard_dir, "openvr.py")
     openvr_entry = (
         f'\n[1, "{wizard_metadata.menu_entry}", "wizard {wizard_metadata.name}"],'
@@ -518,7 +518,7 @@ def main():
         openvr_wizard, openvr_entry, openvr_entry_pattern, openvr_target_pattern
     )
 
-    # Edit the openvr wizard to add a menu item in the internal menu
+    # Add a menu entry in the external GUI
     gui_file = os.path.join(pymol_dir, "_gui.py")
     external_entry = f'\n("command", "{wizard_metadata.menu_entry}", "wizard {wizard_metadata.name}"),'
     external_entry_pattern = re.compile(
