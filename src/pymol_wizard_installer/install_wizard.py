@@ -411,11 +411,12 @@ def main():
     try:
         subprocess.run(
             ([] if os.name == "posix" else ["powershell.exe"])
-            + ["conda", "run", "-n", "prova", "python", "-c", '"import pymol"'],
+            + ["conda", "run", "-n", current_env, "python", "-c", "import pymol"],
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
+        print("PyMOL is already installed, skipping...")
     except subprocess.CalledProcessError:
         print(
             f"PyMOL is not installed in the {current_env} environment. Do you wish to install it? (Y/n)"
