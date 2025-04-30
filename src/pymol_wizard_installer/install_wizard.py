@@ -115,10 +115,6 @@ def install_openvr(clone_dir, conda_base_path, env_name):
                 "run",
                 "-n",
                 env_name,
-                "conda",
-                "run",
-                "-n",
-                env_name,
                 "cmake",
                 "-S",
                 ".",
@@ -134,10 +130,6 @@ def install_openvr(clone_dir, conda_base_path, env_name):
         subprocess.run(
             [
                 "powershell.exe",
-                "conda",
-                "run",
-                "-n",
-                env_name,
                 "conda",
                 "run",
                 "-n",
