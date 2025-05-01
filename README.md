@@ -13,6 +13,8 @@ For a wizard to be installable, it must adhere to the structure described in the
   - [Wizard Metadata File](#wizard-metadata-file)
   - [Package Installation](#package-installation)
 
+## Additional Dependencies
+Installing wizards with OpenVR support requires CMake (major version <=3) and a C++ compiler.
 
 ## Setup
 - install [miniconda](https://www.anaconda.com/docs/getting-started/miniconda/main);
