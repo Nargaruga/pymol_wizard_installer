@@ -6,7 +6,6 @@ import shutil
 import re
 import stat
 import yaml
-import json
 
 from pymol_wizard_installer.wizard_metadata import WizardMetadata
 
@@ -181,8 +180,9 @@ def install_openvr(clone_dir, conda_base_path, env_name):
 def install_pymol(clone_dir, version, env_name, use_openvr):
     """Clone, build and install PyMOL."""
 
+    print("Installing PyMOL...")
+
     if not os.path.exists(os.path.join(clone_dir, "pymol-open-source")):
-        print("Installing PyMOL...")
         subprocess.run(
             [
                 "git",
@@ -319,7 +319,6 @@ def create_env(env_name, wizard_root, current_env, answer=""):
             shell=True,
         )
 
-
 def main():
     args = sys.argv[1:]
     if len(args) < 1:
@@ -397,13 +396,22 @@ def main():
         )
 
     try:
-        subprocess.run(
-            ([] if os.name == "posix" else ["powershell.exe"])
-            + ["conda", "run", "-n", current_env, "python", "-c", "import pymol"],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        if os.name == "posix":
+            subprocess.run(
+                ["conda", "run", "--name", current_env, "python", "-c", "import pymol"],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        else:
+            subprocess.run(
+                f'conda run --name {current_env} python -c "import pymol"',
+                shell=True,
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+
         print("PyMOL is already installed, skipping...")
     except subprocess.CalledProcessError:
         print(
