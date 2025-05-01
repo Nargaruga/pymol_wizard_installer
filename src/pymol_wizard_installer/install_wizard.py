@@ -10,6 +10,18 @@ import yaml
 from pymol_wizard_installer.wizard_metadata import WizardMetadata
 
 
+if os.name == "nt":
+    from pymol_wizard_installer.installer.windows_installer import (
+        WindowsInstaller as Installer,
+    )
+elif os.name == "posix":
+    from pymol_wizard_installer.installer.linux_installer import (
+        LinuxInstaller as Installer,
+    )
+else:
+    raise RuntimeError("Unsupported operating system.")
+
+
 def parse_wizard_metadata(metadata_file):
     """Parse the wizard metadata file."""
 
@@ -28,211 +40,16 @@ def parse_wizard_metadata(metadata_file):
     )
 
 
-def get_env_file(wizard_root):
-    """Get the environment file for the current platform."""
+def get_answer(prompt, default=""):
+    """Prompt the user and return the answer."""
 
-    envs_dir = os.path.join(wizard_root, "envs")
+    try:
+        answer = input(prompt).strip().lower() or default
+    except KeyboardInterrupt:
+        print("Aborted by user.")
+        exit(0)
 
-    linux_env = os.path.join(envs_dir, "linux_environment.yaml")
-    windows_env = os.path.join(envs_dir, "windows_environment.yaml")
-    default_env = os.path.join(envs_dir, "environment.yaml")
-
-    if os.path.isfile(default_env):
-        return default_env
-
-    return linux_env if os.name == "posix" else windows_env
-
-
-def install_openvr(clone_dir, conda_base_path, env_name):
-    """Clone, build and install OpenVR."""
-
-    print("Installing OpenVR...")
-
-    env_dir = os.path.join(conda_base_path, "envs", env_name)
-
-    if not os.path.exists(os.path.join(clone_dir, "openvr")):
-        subprocess.run(
-            [
-                "git",
-                "clone",
-                "-b",
-                "v1.0.17",
-                "git@github.com:ValveSoftware/openvr.git",
-                os.path.join(clone_dir, "openvr"),
-            ],
-            check=True,
-        )
-
-    if os.name == "posix":
-        subprocess.run(
-            [
-                "conda",
-                "run",
-                "-n",
-                env_name,
-                "cmake",
-                "-S",
-                ".",
-                "-B",
-                "build",
-                "-DCMAKE_BUILD_TYPE=Release",
-            ],
-            cwd=os.path.join(clone_dir, "openvr"),
-            check=True,
-        )
-
-        subprocess.run(
-            [
-                "conda",
-                "run",
-                "-n",
-                env_name,
-                "cmake",
-                "--build",
-                "build",
-                "--config",
-                "Release",
-            ],
-            cwd=os.path.join(clone_dir, "openvr"),
-            check=True,
-        )
-
-        subprocess.run(
-            ["conda", "run", "-n", env_name, "sudo", "make", "install"],
-            cwd=os.path.join(clone_dir, "openvr", "build"),
-            check=True,
-        )
-    elif os.name == "nt":
-        subprocess.run(
-            [
-                "powershell.exe",
-                "conda",
-                "run",
-                "-n",
-                env_name,
-                "cmake",
-                "-S",
-                ".",
-                "-B",
-                "build",
-                f"-DCMAKE_INSTALL_PREFIX={env_dir}",
-                "-DBUILD_SHARED=1",
-            ],
-            cwd=os.path.join(clone_dir, "openvr"),
-            check=True,
-        )
-
-        subprocess.run(
-            [
-                "powershell.exe",
-                "conda",
-                "run",
-                "-n",
-                env_name,
-                "cmake",
-                "--build",
-                "build",
-                "--config",
-                "Release",
-                "--target",
-                "install",
-            ],
-            cwd=os.path.join(clone_dir, "openvr"),
-            check=True,
-        )
-
-        # Rename the .lib file
-        shutil.move(
-            os.path.join(
-                env_dir,
-                "Lib",
-                "openvr_api64.lib",
-            ),
-            os.path.join(
-                env_dir,
-                "Lib",
-                "openvr_api.lib",
-            ),
-        )
-
-        # Move the .dll to the right directory
-        shutil.move(
-            os.path.join(
-                env_dir,
-                "Lib",
-                "openvr_api64.dll",
-            ),
-            os.path.join(
-                env_dir,
-                "Library",
-                "bin",
-                "openvr_api64.dll",
-            ),
-        )
-
-    # Copy the openvr.h header
-    shutil.copy(
-        os.path.join(clone_dir, "openvr", "headers", "openvr.h"),
-        os.path.join(env_dir, "include"),
-    )
-
-
-def install_pymol(clone_dir, version, env_name, use_openvr):
-    """Clone, build and install PyMOL."""
-
-    print("Installing PyMOL...")
-
-    if not os.path.exists(os.path.join(clone_dir, "pymol-open-source")):
-        subprocess.run(
-            [
-                "git",
-                "clone",
-                "-b",
-                version,
-                "git@github.com:schrodinger/pymol-open-source.git",
-                os.path.join(clone_dir, "pymol-open-source"),
-            ],
-            check=True,
-        )
-
-    subprocess.run(
-        ([] if os.name == "posix" else ["powershell.exe"])
-        + [
-            "conda",
-            "run",
-            "-n",
-            env_name,
-            "pip",
-            "install",
-            "--config-settings",
-            f"openvr={use_openvr}",
-            os.path.join(clone_dir, "pymol-open-source"),
-        ],
-        check=True,
-    )
-
-
-def add_line_after(file, to_insert, pattern_to_insert, target_pattern):
-    """Adds a line to the file after the specified point. If the line is already present, the file is unchanged."""
-
-    with open(file, "r") as f:
-        contents = f.read()
-
-    if re.search(pattern_to_insert, contents):
-        print(f"Entry already exists in {file}, skipping...")
-        return
-
-    target = target_pattern.search(contents)
-    if target is None:
-        print(f"Could not find target in {file}")
-        return
-
-    target_end = target.end()
-
-    contents = contents[:target_end] + f"{to_insert}" + contents[target_end:]
-
-    with open(file, "w") as f:
-        f.write(contents)
+    return answer
 
 
 def env_exists(env_name):
@@ -260,15 +77,28 @@ def overwrite_env(env_name, wizard_root, current_env):
         exit(1)
     try:
         subprocess.run(
-            f"conda env remove -n {env_name} -y",
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.STDOUT,
-            shell=True,
-        )
-        subprocess.run(
-            f"conda env create -n {env_name} -f {get_env_file(wizard_root)}",
+            [
+                "conda",
+                "env",
+                "remove",
+                "--name",
+                env_name,
+                "--yes",
+            ],
             check=True,
-            shell=True,
+        )
+
+        subprocess.run(
+            [
+                "conda",
+                "env",
+                "create",
+                "--name",
+                env_name,
+                "--file",
+                Installer.get_env_file(wizard_root),
+            ],
+            check=True,
         )
     except subprocess.CalledProcessError as e:
         print(f"Something went wrong while overwriting the environment: {e}")
@@ -280,9 +110,16 @@ def reuse_env(env_name, wizard_root):
 
     print(f"Using existing environment {env_name}.")
     subprocess.run(
-        f"conda env update -n {env_name} -f {get_env_file(wizard_root)}",
+        [
+            "conda",
+            "env",
+            "update",
+            "--name",
+            env_name,
+            "--file",
+            Installer.get_env_file(wizard_root),
+        ],
         check=True,
-        shell=True,
     )
 
 
@@ -300,28 +137,160 @@ def create_env(env_name, wizard_root, current_env, answer=""):
                 print("Aborted by user.")
                 exit(0)
 
-            if answer == "o":
-                overwrite_env(env_name, wizard_root, current_env)
-            elif answer == "u":
-                reuse_env(env_name, wizard_root)
-            elif answer == "a":
-                print("Aborted by user.")
-                exit(0)
-            else:
-                print(
-                    "Invalid input. Please enter 'o' (overwrite), 'u' (use) or 'a' (abort)."
-                )
+        if answer == "o":
+            overwrite_env(env_name, wizard_root, current_env)
+        elif answer == "u":
+            reuse_env(env_name, wizard_root)
+        elif answer == "a":
+            print("Aborted by user.")
+            exit(0)
+        else:
+            print(
+                "Invalid input. Please enter 'o' (overwrite), 'u' (use) or 'a' (abort)."
+            )
     else:
         print(f"Creating new environment {env_name}.")
         subprocess.run(
-            f"conda env create -n {env_name} -f {get_env_file(wizard_root)}",
+            f"conda env create --name {env_name} -f {Installer.get_env_file(wizard_root)}",
             check=True,
             shell=True,
         )
 
+
+def is_pymol_installed(env_name: str) -> bool:
+    """Check if PyMOL is installed in the conda environment."""
+
+    try:
+        subprocess.run(
+            ["conda", "run", "--name", env_name, "python", "-c", "import pymol"],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+
+def run_aux_script(script_path, wizard_root, conda_env):
+    """Run a pre/post installation script."""
+
+    try:
+        subprocess.run(
+            [
+                "conda",
+                "run",
+                "--no-capture-output",
+                "--name",
+                conda_env,
+                "python",
+                script_path,
+                wizard_root,
+                conda_env,
+            ],
+            check=True,
+        )
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to run pre-installation script: {e}")
+        exit(1)
+
+
+def install_package(conda_env: str, wizard_root: str):
+    """Install the wizard package in the conda environment."""
+
+    print(f"Installing package in the {conda_env} environment...")
+    try:
+        subprocess.run(
+            [
+                "conda",
+                "run",
+                "--name",
+                conda_env,
+                "pip",
+                "install",
+                wizard_root,
+            ],
+            check=True,
+        )
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to install package: {e}")
+        exit(1)
+
+
+def copy_files(installed_wizard_dir: str, wizard_root: str, wizard_name: str):
+    """Copy the wizard files to the PyMOL installation directory."""
+
+    print(f"Copying the {wizard_name} wizard to {installed_wizard_dir}...")
+    try:
+        shutil.copy(
+            os.path.join(wizard_root, f"{wizard_name}.py"),
+            os.path.join(installed_wizard_dir, f"{wizard_name}.py"),
+        )
+    except shutil.Error as e:
+        print(f"Failed to copy files: {e}")
+        exit(1)
+
+
+def add_line_after(file, to_insert, pattern_to_insert, target_pattern):
+    """Adds a line to the file after the specified point. If the line is already present, the file is unchanged."""
+
+    with open(file, "r") as f:
+        contents = f.read()
+
+    if re.search(pattern_to_insert, contents):
+        print(f"Entry already exists in {file}, skipping...")
+        return
+
+    target = target_pattern.search(contents)
+    if target is None:
+        print(f"Could not find target in {file}")
+        return
+
+    target_end = target.end()
+
+    contents = contents[:target_end] + f"{to_insert}" + contents[target_end:]
+
+    with open(file, "w") as f:
+        f.write(contents)
+
+
+def add_external_gui_entry(pymol_dir: str, menu_entry: str, wizard_name: str):
+    """Add an entry to the external GUI's Wizard menu."""
+
+    print("Adding external GUI entry...")
+    gui_file = os.path.join(pymol_dir, "_gui.py")
+    external_entry = f'\n("command", "{menu_entry}", "wizard {wizard_name}"),'
+    external_entry_pattern = re.compile(
+        external_entry.replace("(", r"\(").replace(")", r"\)").replace('"', r'["\']')
+    )
+    external_target_pattern = re.compile(
+        r'\(\s*["\']menu["\'],\s*["\']Wizard["\'],\s*\['
+    )
+    add_line_after(
+        gui_file, external_entry, external_entry_pattern, external_target_pattern
+    )
+
+
+def add_internal_gui_entry(
+    installed_wizard_dir: str, menu_entry: str, wizard_name: str
+):
+    """Add an entry to the internal GUI's Wizard menu."""
+
+    print("Adding internal GUI entry...")
+    openvr_wizard = os.path.join(installed_wizard_dir, "openvr.py")
+    openvr_entry = f'\n[1, "{menu_entry}", "wizard {wizard_name}"],'
+    openvr_entry_pattern = re.compile(
+        openvr_entry.replace("[", r"\[").replace("]", r"\]").replace('"', r'["\']')
+    )
+    openvr_target_pattern = re.compile(r'\[2, ["\']Wizard Menu["\'], ["\']["\']\],')
+    add_line_after(
+        openvr_wizard, openvr_entry, openvr_entry_pattern, openvr_target_pattern
+    )
+
+
 def main():
     args = sys.argv[1:]
-    if len(args) < 1:
+    if len(args) == 0:
         print("Please provide the path to the wizard's root directory.")
         exit(1)
 
@@ -333,36 +302,24 @@ def main():
         print("Could not detect conda environment. Is conda installed?")
         exit(1)
 
+    target_env = current_env
     if len(args) > 1:
         print(f"Using provided environment name: {args[1]}.")
-        new_env = args[1]
-        create_env(new_env, wizard_root, current_env, "u")
-        current_env = new_env
+        create_env(args[1], wizard_root, current_env, "u")
+        target_env = args[1]
     else:
-        print(
-            f"You are currently about to install the {wizard_metadata.name} wizard in the {current_env} environment. Do you wish to create a new conda environment instead? (Y/n)"
+        create_new_env_ans = get_answer(
+            f"You are currently about to install the {wizard_metadata.name} wizard in the {current_env} environment. Do you wish to create a new conda environment instead? (Y/n)",
+            "y",
         )
-        try:
-            answer = input().strip().lower() or "y"
-        except KeyboardInterrupt:
-            print("Aborted by user.")
-            exit(0)
 
-        if answer == "y":
-            print(
-                f'Please enter the name of the new environment (leave empty for default, "{wizard_metadata.default_env}"):'
+        if create_new_env_ans == "y":
+            target_env = get_answer(
+                f"Please enter the name of the new environment ({wizard_metadata.default_env}):",
+                wizard_metadata.default_env,
             )
-            try:
-                new_env = input().strip() or wizard_metadata.default_env
-            except KeyboardInterrupt:
-                print("Aborted by user.")
-                exit(0)
 
-            if new_env == "":
-                new_env = wizard_metadata.default_env
-
-            create_env(new_env, wizard_root, current_env)
-            current_env = new_env
+            create_env(target_env, wizard_root, current_env)
         else:
             print(f"Using existing environment {current_env}.")
 
@@ -374,185 +331,68 @@ def main():
         print("Failed to retrieve conda base path.")
         exit(1)
 
-    prefix = os.path.join(conda_base_path, "envs", current_env)
+    prefix = os.path.join(conda_base_path, "envs", target_env)
     if prefix is None:
         print("Something went wrong while creating the new environment.")
         exit(1)
 
-    if os.name == "nt":
-        pymol_dir = os.path.join(
-            prefix,
-            "Lib",
-            "site-packages",
-            "pymol",
-        )
-    else:
-        pymol_dir = os.path.join(
-            prefix,
-            "lib",
-            f"python{wizard_metadata.python_version}",
-            "site-packages",
-            "pymol",
-        )
-
-    try:
-        if os.name == "posix":
-            subprocess.run(
-                ["conda", "run", "--name", current_env, "python", "-c", "import pymol"],
-                check=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-        else:
-            subprocess.run(
-                f'conda run --name {current_env} python -c "import pymol"',
-                shell=True,
-                check=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-
+    pymol_dir = Installer.get_pymol_dir(prefix, wizard_metadata.python_version)
+    if is_pymol_installed(target_env):
         print("PyMOL is already installed, skipping...")
-    except subprocess.CalledProcessError:
-        print(
-            f"PyMOL is not installed in the {current_env} environment. Do you wish to install it? (Y/n)"
+    else:
+        install_pymol_ans = get_answer(
+            f"PyMOL is not installed in the {target_env} environment. Do you wish to install it? (Y/n)",
+            "y",
         )
-        try:
-            answer = input().strip().lower() or "y"
-        except KeyboardInterrupt:
-            print("Aborted by user.")
-            exit(0)
-        if answer == "y":
+        if install_pymol_ans == "y":
             clone_dir_path = os.path.join(".", "tmp")
             Path(clone_dir_path).mkdir(parents=True, exist_ok=True)
-            print("Do you wish to include VR support? (Y/n)")
-            try:
-                answer = input().strip().lower() or "y"
-            except KeyboardInterrupt:
-                print("Aborted by user.")
-                exit(0)
-            try:
-                if answer == "y":
-                    install_openvr(clone_dir_path, conda_base_path, current_env)
-                    use_openvr = True
-                else:
-                    use_openvr = False
-                install_pymol(
-                    clone_dir_path,
-                    wizard_metadata.pymol_version,
-                    current_env,
-                    use_openvr,
-                )
-            except subprocess.CalledProcessError as e:
-                print(f"Failed to install PyMOL: {e}")
-                exit(1)
+
+            openvr_support_ans = get_answer(
+                "Do you wish to enable OpenVR support? (Y/n)", "y"
+            )
+            if openvr_support_ans == "y":
+                Installer.install_openvr(clone_dir_path, conda_base_path, target_env)
+                use_openvr = True
+            else:
+                use_openvr = False
+
+            Installer.install_pymol(
+                clone_dir_path,
+                wizard_metadata.pymol_version,
+                target_env,
+                use_openvr,
+            )
 
     if wizard_metadata.pre_script:
         print(
             f"Running pre-installation script for the {wizard_metadata.name} wizard..."
         )
-        try:
-            subprocess.run(
-                ([] if os.name == "posix" else ["powershell.exe"])
-                + [
-                    "conda",
-                    "run",
-                    "--no-capture-output",
-                    "-n",
-                    current_env,
-                    "python",
-                    os.path.join(wizard_root, wizard_metadata.pre_script),
-                    wizard_root,
-                    current_env,
-                ],
-                check=True,
-            )
-        except subprocess.CalledProcessError as e:
-            print(f"Failed to run pre-installation script: {e}")
-            exit(1)
-
-    print("Installing package...")
-    try:
-        subprocess.run(
-            ([] if os.name == "posix" else ["powershell.exe"])
-            + [
-                "conda",
-                "run",
-                "--name",
-                current_env,
-                "pip",
-                "install",
-                wizard_root,
-            ]
+        run_aux_script(
+            os.path.join(wizard_root, wizard_metadata.pre_script),
+            wizard_root,
+            target_env,
         )
-    except subprocess.CalledProcessError as e:
-        print(f"Failed to install package: {e}")
-        exit(1)
 
-    print("Copying files...")
+    install_package(target_env, wizard_root)
     installed_wizard_dir = os.path.join(pymol_dir, "wizard")
-    print(f"Copying {wizard_metadata.name} wizard to {installed_wizard_dir}...")
-    try:
-        shutil.copy(
-            os.path.join(wizard_root, f"{wizard_metadata.name}.py"),
-            os.path.join(installed_wizard_dir, f"{wizard_metadata.name}.py"),
-        )
-    except shutil.Error as e:
-        print(f"Failed to copy files: {e}")
-        exit(1)
-
-    print("Adding menu entries...")
-    # Add a menu entry in the internal GUI
-    openvr_wizard = os.path.join(installed_wizard_dir, "openvr.py")
-    openvr_entry = (
-        f'\n[1, "{wizard_metadata.menu_entry}", "wizard {wizard_metadata.name}"],'
-    )
-    openvr_entry_pattern = re.compile(
-        openvr_entry.replace("[", r"\[").replace("]", r"\]").replace('"', r'["\']')
-    )
-    openvr_target_pattern = re.compile(r'\[2, ["\']Wizard Menu["\'], ["\']["\']\],')
-    add_line_after(
-        openvr_wizard, openvr_entry, openvr_entry_pattern, openvr_target_pattern
+    copy_files(installed_wizard_dir, wizard_root, wizard_metadata.name)
+    add_external_gui_entry(pymol_dir, wizard_metadata.menu_entry, wizard_metadata.name)
+    add_internal_gui_entry(
+        installed_wizard_dir, wizard_metadata.menu_entry, wizard_metadata.name
     )
 
-    # Add a menu entry in the external GUI
-    gui_file = os.path.join(pymol_dir, "_gui.py")
-    external_entry = f'\n("command", "{wizard_metadata.menu_entry}", "wizard {wizard_metadata.name}"),'
-    external_entry_pattern = re.compile(
-        external_entry.replace("(", r"\(").replace(")", r"\)").replace('"', r'["\']')
-    )
-    external_target_pattern = re.compile(
-        r'\(\s*["\']menu["\'],\s*["\']Wizard["\'],\s*\['
-    )
-    add_line_after(
-        gui_file, external_entry, external_entry_pattern, external_target_pattern
-    )
-
-    print(f"The {wizard_metadata.name} wizard has been installed successfully.")
+    print(f"The {wizard_metadata.name} wizard has been successfully installed.")
 
     if wizard_metadata.post_script:
         print(
             f"Running post-installation script for the {wizard_metadata.name} wizard..."
         )
-        try:
-            subprocess.run(
-                ([] if os.name == "posix" else ["powershell.exe"])
-                + [
-                    "conda",
-                    "run",
-                    "--no-capture-output",
-                    "-n",
-                    current_env,
-                    "python",
-                    os.path.join(wizard_root, wizard_metadata.post_script),
-                    wizard_root,
-                    current_env,
-                ],
-                check=True,
-            )
-        except subprocess.CalledProcessError as e:
-            print(f"Failed to run post-installation script: {e}")
-            exit(1)
+        run_aux_script(
+            os.path.join(wizard_root, wizard_metadata.post_script),
+            wizard_root,
+            target_env,
+        )
 
     def remove_readonly(func, path, _):
         """Clear the readonly bit and remove the file."""
@@ -561,22 +401,23 @@ def main():
         func(path)
 
     if os.path.exists(os.path.join(wizard_root, "tmp")):
-        print("Do you wish to clear the installation files? (Y/n)")
-        try:
-            answer = input().strip().lower() or "y"
-        except KeyboardInterrupt:
-            print("Aborted by user.")
-            exit(0)
-        if answer == "y":
+        delete_files_ans = get_answer(
+            "Do you wish to clear the installation files? (y/N)", "n"
+        )
+        if delete_files_ans == "y":
             try:
                 shutil.rmtree(os.path.join(wizard_root, "tmp"), onerror=remove_readonly)
                 print("Files removed.")
             except FileNotFoundError:
                 print("No files to remove.")
                 pass
+        else:
+            print(
+                f"Installation files are kept in {os.path.join(wizard_root, 'tmp')}, if you want to manually delete them."
+            )
 
     print(
-        f"Remember to activate the {current_env} conda environment before running PyMOL."
+        f"Remember to activate the {target_env} conda environment before running PyMOL."
     )
 
 
