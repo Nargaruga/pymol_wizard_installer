@@ -6,6 +6,7 @@ import shutil
 import re
 import stat
 import yaml
+import argparse
 
 from pymol_wizard_installer.wizard_metadata import WizardMetadata
 
@@ -289,12 +290,29 @@ def add_internal_gui_entry(
 
 
 def main():
-    args = sys.argv[1:]
-    if len(args) == 0:
-        print("Please provide the path to the wizard's root directory.")
-        exit(1)
+    parser = argparse.ArgumentParser(
+        prog="Wizard Installer", description="Automate PyMOL wizard installation."
+    )
+    parser.add_argument(
+        "wizard_root",
+        type=str,
+        help="Path to the wizard's root directory.",
+    )
 
-    wizard_root = os.path.abspath(args[0])
+    parser.add_argument(
+        "--env_name",
+        type=str,
+        help="Name of the conda environment to create or use.",
+    )
+
+    parser.add_argument(
+        "--fast",
+        action="store_true",
+    )
+
+    args = parser.parse_args()
+
+    wizard_root = os.path.abspath(args.wizard_root)
     wizard_metadata = parse_wizard_metadata(os.path.join(wizard_root, "metadata.yaml"))
 
     current_env = os.environ.get("CONDA_DEFAULT_ENV")
@@ -302,11 +320,40 @@ def main():
         print("Could not detect conda environment. Is conda installed?")
         exit(1)
 
+    if args.fast:
+        if args.env_name:
+            # TODO make this prettier, as it is just a copy-paste of the code below
+            print("Quick installation mode enabled.")
+            target_env = args.env_name
+            install_package(target_env, wizard_root)
+            try:
+                conda_base_path = str(
+                    subprocess.check_output("conda info --base", shell=True), "utf-8"
+                ).strip()
+            except subprocess.CalledProcessError:
+                print("Failed to retrieve conda base path.")
+                exit(1)
+
+            prefix = os.path.join(conda_base_path, "envs", target_env)
+            if prefix is None:
+                print("Something went wrong while creating the new environment.")
+                exit(1)
+
+            pymol_dir = Installer.get_pymol_dir(prefix, wizard_metadata.python_version)
+            installed_wizard_dir = os.path.join(pymol_dir, "wizard")
+            copy_files(installed_wizard_dir, wizard_root, wizard_metadata.name)
+            return
+        else:
+            print(
+                "Quick installation requires an environment name. Please provide one using --env_name."
+            )
+            exit(1)
+
     target_env = current_env
-    if len(args) > 1:
-        print(f"Using provided environment name: {args[1]}.")
-        create_env(args[1], wizard_root, current_env, "u")
-        target_env = args[1]
+    if args.env_name:
+        target_env = args.env_name
+        print(f"Using provided environment name: {target_env}.")
+        create_env(target_env, wizard_root, current_env, "u")
     else:
         create_new_env_ans = get_answer(
             f"You are currently about to install the {wizard_metadata.name} wizard in the {current_env} environment. Do you wish to create a new conda environment instead? (Y/n)",

@@ -4,6 +4,7 @@ Tool for installing PyMOL wizards in Conda environments. The installation proces
 For a wizard to be installable, it must adhere to the structure described in the [Making your Wizard Installable](#making-your-wizard-installable) section.
 
 ## Table of Contents <!-- omit in toc -->
+- [Additional Dependencies](#additional-dependencies)
 - [Setup](#setup)
 - [Installing a Wizard](#installing-a-wizard)
 - [Uninstalling a Wizard](#uninstalling-a-wizard)
@@ -26,7 +27,7 @@ After installation, two command line tools are made available: `install_wizard` 
 ## Installing a Wizard
 To install a wizard, run
 ```
-install_wizard <PATH> [ENV_NAME]
+install_wizard <PATH> --env_name [ENV_NAME]
 ```
 where
 - `<PATH>`: path to the wizard's root directory;
