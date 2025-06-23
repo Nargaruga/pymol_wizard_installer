@@ -260,7 +260,7 @@ def add_external_gui_entry(pymol_dir: str, menu_entry: str, wizard_name: str):
 
     print("Adding external GUI entry...")
     gui_file = os.path.join(pymol_dir, "_gui.py")
-    external_entry = f'\n("command", "{menu_entry}", "wizard {wizard_name}"),'
+    external_entry = f"\n('command', '{menu_entry}', 'wizard {wizard_name}'),"
     external_entry_pattern = re.compile(
         external_entry.replace("(", r"\(").replace(")", r"\)").replace('"', r'["\']')
     )
@@ -293,7 +293,7 @@ def parse_args():
     """Parse and return command line arguments."""
 
     parser = argparse.ArgumentParser(
-        prog="install_wizard", description="Automate PyMOL wizard installation."
+        prog="install_wizard", description="Install a PyMOL wizard."
     )
     parser.add_argument(
         "wizard_root",
