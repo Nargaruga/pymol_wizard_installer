@@ -27,20 +27,22 @@ After installation, two command line tools are made available: `install_wizard` 
 ## Installing a Wizard
 To install a wizard, run
 ```
-install_wizard <PATH> --env_name [ENV_NAME]
+install_wizard [--env_name ENV_NAME] [--fast] <PATH>
 ```
 where
-- `<PATH>`: path to the wizard's root directory;
-- `[ENV_NAME]`: (optional) name of the Conda environment to install the wizard in.
+- `--env_name ENV_NAME`: (optional) name of the Conda environment to install the wizard in.
+- `--fast`: (optional) only install the Python package and the main wizard file, skipping all other installation steps.
+- `PATH`: path to the wizard's root directory.
+
 
 ## Uninstalling a Wizard
 To uninstall a wizard, run
 ```
-uninstall_wizard <PATH> [ENV_NAME]
+uninstall_wizard [--env_name ENV_NAME] <PATH>
 ```
 where
-- `<PATH>`: path to the wizard's root directory;
-- `[ENV_NAME]`: (optional) name of the Conda environment you want to remove the wizard from.
+- `--env_name ENV_NAME`: (optional) name of the Conda environment you want to remove the wizard from.
+- `PATH`: path to the wizard's root directory.
 
 ## Making your Wizard Installable
 This section is for developers who want to make their wizard installable with this tool. The required structure is as follows:

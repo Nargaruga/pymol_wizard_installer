@@ -6,22 +6,35 @@ import re
 import fileinput
 import yaml
 import toml
+import argparse
 
 from pymol_wizard_installer.wizard_metadata import WizardMetadata
 
 
-def read_wizard_metadata(installation_data):
-    stream = open(Path(installation_data), "r")
-    raw_data = yaml.safe_load(stream)
+def parse_wizard_metadata(metadata_file):
+    """Parse the wizard metadata file."""
 
-    return raw_data
+    stream = open(Path(metadata_file), "r")
+    raw_metadata = yaml.safe_load(stream)
+
+    return WizardMetadata(
+        raw_metadata["name"],
+        raw_metadata["menu_entry"],
+        raw_metadata["default_env"],
+        raw_metadata["python_version"],
+        raw_metadata["pymol_version"],
+        raw_metadata["openvr_version"],
+        raw_metadata["pre_script"],
+        raw_metadata["post_script"],
+    )
 
 
 def remove_line(file, pattern_to_remove):
-    with fileinput.FileInput(file, inplace=True, backup=".bak") as file:
-        for line in file:
+    print(f"Processing file: {file}")
+    with fileinput.FileInput(file, inplace=True, backup=".bak") as opened_file:
+        for line in opened_file:
             if not pattern_to_remove.search(line):
-                print(line, end="")
+                sys.stdout.write(line)
 
 
 def get_package_name_from_toml(package_root):
@@ -47,48 +60,58 @@ def get_package_name_from_toml(package_root):
         print(f"Error: pyproject.toml not found at {toml_path}")
         return None
 
-def uninstall_package(package_name):
+
+def uninstall_package(package_name, env_name):
     """Uninstalls a Python package using pip."""
 
     try:
-        subprocess.check_call([sys.executable, "-m", "pip", "uninstall", "-y", package_name])
+        subprocess.run(
+            ["conda", "run", "-n", env_name, "pip", "uninstall", "-y", package_name],
+            shell=True,
+        )
         print(f"Successfully uninstalled {package_name}")
     except subprocess.CalledProcessError as e:
         print(f"Error uninstalling {package_name}: {e}")
 
+
+def parse_args():
+    """Parse and return command line arguments."""
+
+    parser = argparse.ArgumentParser(
+        prog="uninstall_wizard", description="Uninstall a PyMOL wizard."
+    )
+    parser.add_argument(
+        "wizard_root",
+        type=str,
+        help="Path to the wizard's root directory.",
+    )
+
+    parser.add_argument(
+        "--env_name",
+        type=str,
+        help="Name of the conda environment to uninstall from.",
+    )
+
+    return parser.parse_args()
+
+
 def main():
-    if len(sys.argv) < 2:
-        print("Please provide the path to the wizard's root directory.")
-        exit(1)
-
-    raw_wizard_metadata = read_wizard_metadata(
-        os.path.join(sys.argv[1], "metadata.yaml")
-    )
-    wizard_config = WizardMetadata(
-        raw_wizard_metadata["name"],
-        raw_wizard_metadata["menu_entry"],
-        raw_wizard_metadata["default_env"],
-        raw_wizard_metadata["use_vr"],
-        raw_wizard_metadata["python_version"],
-        raw_wizard_metadata["pymol_version"],
-        raw_wizard_metadata["openvr_version"],
-        raw_wizard_metadata["pre_script"],
-        raw_wizard_metadata["post_script"],
+    args = parse_args()
+    wizard_metadata = parse_wizard_metadata(
+        os.path.join(args.wizard_root, "metadata.yaml")
     )
 
-    if len(sys.argv) > 2:
-        env_name = sys.argv[2]
+    if args.env_name:
+        env_name = args.env_name
+        print(f"Using recorded environment name: {env_name}.")
     else:
-        env_name = None
-
-    if env_name is None:
         print(
-            f'The conda environment used in the installation was not recorded. Please enter the name of the environment, or leave empty for default ("{wizard_config.default_env}"):'
+            f'The conda environment used in the installation was not recorded. Please enter the name of the environment, or leave empty for default ("{wizard_metadata.default_env}"):'
         )
         try:
             env_name = input().strip()
             if not env_name:
-                env_name = wizard_config.default_env
+                env_name = wizard_metadata.default_env
         except KeyboardInterrupt:
             print("Aborted by user.")
             exit(0)
@@ -107,7 +130,7 @@ def main():
         exit(1)
 
     print("Uninstalling package...")
-    uninstall_package(get_package_name_from_toml(sys.argv[1]))
+    uninstall_package(get_package_name_from_toml(args.wizard_root), args.env_name)
 
     print("Removing files...")
     if os.name == "nt":
@@ -121,40 +144,37 @@ def main():
         pymol_dir = os.path.join(
             prefix,
             "lib",
-            f"python{wizard_config.python_version}",
+            f"python{wizard_metadata.python_version}",
             "site-packages",
             "pymol",
         )
 
     installed_wizard_dir = os.path.join(pymol_dir, "wizard")
     try:
-        os.remove(os.path.join(installed_wizard_dir, f"{wizard_config.name}.py"))
+        os.remove(os.path.join(installed_wizard_dir, f"{wizard_metadata.name}.py"))
     except FileNotFoundError:
         print("No files to delete.")
         pass
 
     print("Removing menu entries...")
-    if wizard_config.use_vr:
-        openvr_wizard_file = os.path.join(pymol_dir, "wizard", "openvr.py")
-        openvr_entry = (
-            f"[1, '{wizard_config.menu_entry}', 'wizard {wizard_config.name}'],\n"
-        )
-        openvr_entry_pattern = re.compile(
-            openvr_entry.replace("[", r"\[").replace("]", r"\]")
-        )
-        remove_line(openvr_wizard_file, openvr_entry_pattern)
+    openvr_wizard_file = os.path.join(pymol_dir, "wizard", "openvr.py")
+    openvr_entry = (
+        f"[1, '{wizard_metadata.menu_entry}', 'wizard {wizard_metadata.name}'],\n"
+    )
+    openvr_entry_pattern = re.compile(
+        openvr_entry.replace("[", r"\[").replace("]", r"\]")
+    )
+    remove_line(openvr_wizard_file, openvr_entry_pattern)
 
     gui_file = os.path.join(pymol_dir, "_gui.py")
-    external_entry = (
-        f"('command', '{wizard_config.menu_entry}', 'wizard {wizard_config.name}'),\n"
-    )
+    external_entry = f"('command', '{wizard_metadata.menu_entry}', 'wizard {wizard_metadata.name}'),\n"
     external_entry_pattern = re.compile(
         external_entry.replace("(", r"\(").replace(")", r"\)")
     )
     remove_line(gui_file, external_entry_pattern)
 
     print(
-        f"Successfully uninstalled wizard {wizard_config.name} from environment {env_name}."
+        f"Successfully uninstalled wizard {wizard_metadata.name} from environment {env_name}."
     )
 
 
