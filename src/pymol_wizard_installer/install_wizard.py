@@ -192,7 +192,7 @@ def run_aux_script(script_path, wizard_root, conda_env):
             check=True,
         )
     except subprocess.CalledProcessError as e:
-        print(f"Failed to run pre-installation script: {e}")
+        print(f"Failed to run auxiliary installation script: {e}")
         exit(1)
 
 
@@ -289,9 +289,11 @@ def add_internal_gui_entry(
     )
 
 
-def main():
+def parse_args():
+    """Parse and return command line arguments."""
+
     parser = argparse.ArgumentParser(
-        prog="Wizard Installer", description="Automate PyMOL wizard installation."
+        prog="install_wizard", description="Automate PyMOL wizard installation."
     )
     parser.add_argument(
         "wizard_root",
@@ -310,79 +312,21 @@ def main():
         action="store_true",
     )
 
-    args = parser.parse_args()
+    return parser.parse_args()
 
-    wizard_root = os.path.abspath(args.wizard_root)
-    wizard_metadata = parse_wizard_metadata(os.path.join(wizard_root, "metadata.yaml"))
 
-    current_env = os.environ.get("CONDA_DEFAULT_ENV")
-    if current_env is None:
-        print("Could not detect conda environment. Is conda installed?")
-        exit(1)
+def fast_installation(target_env, prefix, wizard_root, wizard_metadata):
+    print("Quick installation mode enabled.")
+    install_package(target_env, wizard_root)
 
-    if args.fast:
-        if args.env_name:
-            # TODO make this prettier, as it is just a copy-paste of the code below
-            print("Quick installation mode enabled.")
-            target_env = args.env_name
-            install_package(target_env, wizard_root)
-            try:
-                conda_base_path = str(
-                    subprocess.check_output("conda info --base", shell=True), "utf-8"
-                ).strip()
-            except subprocess.CalledProcessError:
-                print("Failed to retrieve conda base path.")
-                exit(1)
+    pymol_dir = Installer.get_pymol_dir(prefix, wizard_metadata.python_version)
+    installed_wizard_dir = os.path.join(pymol_dir, "wizard")
+    copy_files(installed_wizard_dir, wizard_root, wizard_metadata.name)
 
-            prefix = os.path.join(conda_base_path, "envs", target_env)
-            if prefix is None:
-                print("Something went wrong while creating the new environment.")
-                exit(1)
 
-            pymol_dir = Installer.get_pymol_dir(prefix, wizard_metadata.python_version)
-            installed_wizard_dir = os.path.join(pymol_dir, "wizard")
-            copy_files(installed_wizard_dir, wizard_root, wizard_metadata.name)
-            return
-        else:
-            print(
-                "Quick installation requires an environment name. Please provide one using --env_name."
-            )
-            exit(1)
-
-    target_env = current_env
-    if args.env_name:
-        target_env = args.env_name
-        print(f"Using provided environment name: {target_env}.")
-        create_env(target_env, wizard_root, current_env, "u")
-    else:
-        create_new_env_ans = get_answer(
-            f"You are currently about to install the {wizard_metadata.name} wizard in the {current_env} environment. Do you wish to create a new conda environment instead? (Y/n)",
-            "y",
-        )
-
-        if create_new_env_ans == "y":
-            target_env = get_answer(
-                f"Please enter the name of the new environment ({wizard_metadata.default_env}):",
-                wizard_metadata.default_env,
-            )
-
-            create_env(target_env, wizard_root, current_env)
-        else:
-            print(f"Using existing environment {current_env}.")
-
-    try:
-        conda_base_path = str(
-            subprocess.check_output("conda info --base", shell=True), "utf-8"
-        ).strip()
-    except subprocess.CalledProcessError:
-        print("Failed to retrieve conda base path.")
-        exit(1)
-
-    prefix = os.path.join(conda_base_path, "envs", target_env)
-    if prefix is None:
-        print("Something went wrong while creating the new environment.")
-        exit(1)
-
+def full_installation(
+    target_env, prefix, conda_base_path, wizard_root, wizard_metadata
+):
     pymol_dir = Installer.get_pymol_dir(prefix, wizard_metadata.python_version)
     if is_pymol_installed(target_env):
         print("PyMOL is already installed, skipping...")
@@ -462,6 +406,63 @@ def main():
             print(
                 f"Installation files are kept in {os.path.join(wizard_root, 'tmp')}, if you want to manually delete them."
             )
+
+
+def main():
+    args = parse_args()
+
+    wizard_root = os.path.abspath(args.wizard_root)
+    wizard_metadata = parse_wizard_metadata(os.path.join(wizard_root, "metadata.yaml"))
+
+    current_env = os.environ.get("CONDA_DEFAULT_ENV")
+    if current_env is None:
+        print("Could not detect conda environment. Is conda installed?")
+        exit(1)
+
+    try:
+        conda_base_path = str(
+            subprocess.check_output("conda info --base", shell=True), "utf-8"
+        ).strip()
+    except subprocess.CalledProcessError:
+        print("Failed to retrieve conda base path.")
+        exit(1)
+
+    if args.env_name:
+        target_env = args.env_name
+        print(f"Using provided environment name: {target_env}.")
+    else:
+        target_env = current_env
+        print(f"Using current environment: {target_env}.")
+
+    prefix = os.path.join(conda_base_path, "envs", target_env)
+    if prefix is None:
+        print(f"Environment {target_env} does not exist.")
+        exit(1)
+
+    if args.fast:
+        fast_installation(target_env, prefix, wizard_root, wizard_metadata)
+    else:
+        if target_env != current_env:
+            create_env(target_env, wizard_root, current_env, "u")
+        else:
+            create_new_env_ans = get_answer(
+                f"You are currently about to install the {wizard_metadata.name} wizard in the {current_env} environment. Do you wish to create a new conda environment instead? (Y/n)",
+                "y",
+            )
+
+            if create_new_env_ans == "y":
+                target_env = get_answer(
+                    f"Please enter the name of the new environment ({wizard_metadata.default_env}):",
+                    wizard_metadata.default_env,
+                )
+
+                create_env(target_env, wizard_root, current_env)
+            else:
+                print(f"Using existing environment {current_env}.")
+
+        full_installation(
+            target_env, prefix, conda_base_path, wizard_root, wizard_metadata
+        )
 
     print(
         f"Remember to activate the {target_env} conda environment before running PyMOL."
